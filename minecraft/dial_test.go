@@ -61,6 +61,19 @@ func TestDefaultClientDataUsesCurrentVanillaVersion(t *testing.T) {
 	}
 }
 
+func TestDefaultClientDataReturnsReusableProfile(t *testing.T) {
+	data := DefaultClientData("zeqa.net:19132")
+	if data.ServerAddress != "zeqa.net:19132" {
+		t.Fatalf("server address = %q", data.ServerAddress)
+	}
+	if data.ClientRandomID == 0 || data.DeviceID == "" || data.SelfSignedID == "" || data.SkinID == "" {
+		t.Fatalf("profile has unstable empty identity fields: %#v", data)
+	}
+	if data.SkinData == "" || data.SkinResourcePatch == "" || data.SkinGeometry == "" {
+		t.Fatal("profile has incomplete default skin data")
+	}
+}
+
 func TestDefaultClientDataPreservesSkinGeometryEngineVersion(t *testing.T) {
 	want := base64.StdEncoding.EncodeToString([]byte("0.0.0"))
 	data := login.ClientData{SkinGeometryVersion: want}

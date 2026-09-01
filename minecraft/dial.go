@@ -503,6 +503,14 @@ func DefaultSkinResourcePatch() []byte {
 	return bytes.Clone(skinResourcePatch)
 }
 
+// DefaultClientData returns a reusable vanilla-compatible client profile for address. Callers that follow
+// server transfers may copy the result and update only ServerAddress so device identity remains stable.
+func DefaultClientData(address string) login.ClientData {
+	var data login.ClientData
+	defaultClientData(address, "", &data)
+	return data
+}
+
 // defaultClientData edits the ClientData passed to have defaults set to all fields that were left unchanged.
 func defaultClientData(address, username string, d *login.ClientData) {
 	if d.ServerAddress == "" {
