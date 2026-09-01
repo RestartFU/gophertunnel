@@ -3,6 +3,11 @@ package minecraft
 // DefaultResourcePackMaxInFlightChunks matches the vanilla client request window.
 const DefaultResourcePackMaxInFlightChunks = 100
 
+const (
+	maxResourcePackCount     = 64
+	maxResourcePackTotalSize = uint64(512 << 20)
+)
+
 // maxResourcePackPrealloc bounds the buffer reserved up front for a pack. The size comes from
 // ResourcePacksInfo and is only a claim at that point, so a server would otherwise turn one small packet
 // into an allocation of any size it names. Larger packs still grow their buffer as chunks arrive.

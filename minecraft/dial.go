@@ -91,6 +91,10 @@ type Dialer struct {
 	// ResourcePackCache, if set, reuses resource packs downloaded on earlier logins. Misses and errors
 	// fall back to a normal download.
 	ResourcePackCache ResourcePackCache
+	// ResourcePackHTTPClient performs server-provided resource-pack URL requests. Callers handling untrusted
+	// servers should provide a client that validates and pins public destinations and redirects.
+	// If nil, http.DefaultClient is used.
+	ResourcePackHTTPClient *http.Client
 
 	// DisconnectOnUnknownPackets specifies if the connection should disconnect if packets received are not present
 	// in the packet pool. If true, such packets lead to the connection being closed immediately.
@@ -337,6 +341,10 @@ func (d Dialer) DialContextNetwork(ctx context.Context, network Network, address
 	conn.downloadResourcePack = d.DownloadResourcePack
 	conn.resourcePackDownload = d.ResourcePackDownload.normalized()
 	conn.resourcePackCache = d.ResourcePackCache
+	conn.resourcePackHTTPClient = d.ResourcePackHTTPClient
+	if conn.resourcePackHTTPClient == nil {
+		conn.resourcePackHTTPClient = http.DefaultClient
+	}
 	conn.cacheEnabled = d.EnableClientCache
 	conn.disconnectOnInvalidPacket = d.DisconnectOnInvalidPackets
 	conn.disconnectOnUnknownPacket = d.DisconnectOnUnknownPackets

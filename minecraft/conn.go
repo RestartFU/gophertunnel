@@ -13,6 +13,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"net/http"
 	"regexp"
 	"slices"
 	"strconv"
@@ -341,7 +342,8 @@ type Conn struct {
 	// will determine which resource packs to send to the client based on its identity and client data.
 	fetchResourcePacks func(identityData login.IdentityData, clientData login.ClientData, current []*resource.Pack) []*resource.Pack
 	// resourcePackCache optionally stores resource packs downloaded by a Dialer.
-	resourcePackCache ResourcePackCache
+	resourcePackCache      ResourcePackCache
+	resourcePackHTTPClient *http.Client
 	// resourcePackDelivery controls resource pack delivery for Listener connections.
 	resourcePackDelivery ResourcePackDeliveryConfig
 	// ignoredResourcePacks is a slice of resource packs that are not being downloaded due to the downloadResourcePack
@@ -1658,6 +1660,19 @@ func (conn *Conn) handleClientCacheStatus(pk *packet.ClientCacheStatus) error {
 // handleResourcePacksInfo handles a ResourcePacksInfo packet sent by the server. The client responds by
 // sending the packs it needs downloaded.
 func (conn *Conn) handleResourcePacksInfo(pk *packet.ResourcePacksInfo) error {
+	if len(pk.TexturePacks) > maxResourcePackCount {
+		return fmt.Errorf("handle ResourcePacksInfo: too many resource packs: %d exceeds maximum %d", len(pk.TexturePacks), maxResourcePackCount)
+	}
+	var declaredTotal uint64
+	for _, pack := range pk.TexturePacks {
+		if pack.Size > maxResourcePackTotalSize {
+			return fmt.Errorf("handle ResourcePacksInfo: resource pack %v too large: %d bytes exceeds maximum %d", pack.UUID, pack.Size, maxResourcePackTotalSize)
+		}
+		if pack.Size > maxResourcePackTotalSize-declaredTotal {
+			return fmt.Errorf("handle ResourcePacksInfo: resource pack aggregate too large: maximum %d bytes", maxResourcePackTotalSize)
+		}
+		declaredTotal += pack.Size
+	}
 	// First create a new resource pack queue with the information in the packet so we can download them
 	// properly later.
 	totalPacks := len(pk.TexturePacks)
@@ -1705,7 +1720,7 @@ func (conn *Conn) handleResourcePacksInfo(pk *packet.ResourcePacksInfo) error {
 
 		// Try to use the Download URL if set
 		if pack.DownloadURL != "" {
-			newPack, err := resource.ReadURLContextLimit(conn.ctx, pack.DownloadURL, pack.Size)
+			newPack, err := resource.ReadURLContextClientLimit(conn.ctx, conn.resourcePackHTTPClient, pack.DownloadURL, pack.Size)
 			if err != nil {
 				conn.log.Warn("handle ResourcePacksInfo: failed to download pack from URL", "UUID", pack.UUID, "download_url", pack.DownloadURL, "err", err)
 			} else if newPack.UUID() != pack.UUID || newPack.Version() != pack.Version {
