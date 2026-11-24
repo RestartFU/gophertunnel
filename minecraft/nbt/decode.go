@@ -553,8 +553,9 @@ func (d *Decoder) tag() (t tagType, tagName string, err error) {
 		return 0, "", BufferOverrunError{Op: "ReadTag"}
 	}
 	t = tagType(tagTypeByte)
-	if _, ok := d.Encoding.(networkBigEndian); ok && t == tagStruct && d.depth == 0 {
-		// As of Minecraft Java 1.20.2, the name of the root compound tag is not written over the network.
+	if _, ok := d.Encoding.(networkBigEndian); ok && t != tagEnd && d.depth == 0 {
+		// As of Minecraft Java 1.20.2, the root tag's name is not written over the network. The root is
+		// usually a compound, but since 1.20.3 it may be any tag, such as a text component sent as a string.
 		return t, "", err
 	}
 	if t != tagEnd {
